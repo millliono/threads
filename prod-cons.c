@@ -8,6 +8,7 @@
 #define QUEUESIZE 10
 #define LOOP 20
 #define NUM_CONSUMER 5
+#define PERIOD 500000
 
 void *producer(void *args);
 void *consumer(void *args);
@@ -27,7 +28,9 @@ void queueAdd(queue *q, int in);
 void queueDel(queue *q, int *out);
 
 bool prod_finished = 0;
-struct timeval time_now;
+struct timeval tv;
+time_t t;
+struct tm *info;
 
 int main()
 {
@@ -66,19 +69,34 @@ void *producer(void *q)
 
   fifo = (queue *)q;
 
+  struct timeval end;
+  struct timeval start;
+  unsigned int delay;
+
   for (i = 0; i < LOOP; i++)
   {
-    pthread_mutex_lock(fifo->mut);
+    gettimeofday(&start, NULL);
+    pthread_mutex_lock(fifo->mut); // lock mutex
+
     while (fifo->full)
     {
       printf("producer: queue FULL.\n");
       pthread_cond_wait(fifo->notFull, fifo->mut);
     }
-    queueAdd(fifo, i);
-    pthread_mutex_unlock(fifo->mut);
+    gettimeofday(&end, NULL);
+    queueAdd(fifo, i); // add 
+
+    gettimeofday(&tv, NULL);
+    t = tv.tv_sec;
+    info = localtime(&t);
+    printf("%s", asctime(info));
+
+    pthread_mutex_unlock(fifo->mut); // unlock mutex
     pthread_cond_signal(fifo->notEmpty);
 
-    printf("producer: added %d.\n", i);
+    delay = (end.tv_sec * 1000000 + end.tv_usec) -
+            (start.tv_sec * 1000000 + start.tv_usec);
+    usleep(PERIOD - delay);
   }
   prod_finished = 1;
   pthread_cond_broadcast(fifo->notEmpty);
