@@ -2,9 +2,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <sys/time.h>
 
 #define QUEUESIZE 10
 #define LOOP 20
+#define NUM_CONSUMER 5
 
 void *producer(void *args);
 void *consumer(void *args);
@@ -23,10 +26,15 @@ void queueDelete(queue *q);
 void queueAdd(queue *q, int in);
 void queueDel(queue *q, int *out);
 
+bool prod_finished = 0;
+// struct timeval time_now;
+
+
 int main()
 {
   queue *fifo;
-  pthread_t pro, con1, con2;
+  pthread_t pro;
+  pthread_t cons[NUM_CONSUMER];
 
   fifo = queueInit();
   if (fifo == NULL)
@@ -34,13 +42,18 @@ int main()
     fprintf(stderr, "main: Queue Init failed.\n");
     exit(1);
   }
+
   pthread_create(&pro, NULL, producer, fifo);
-  pthread_create(&con1, NULL, consumer, fifo);
-  pthread_create(&con2, NULL, consumer, fifo);
+  for (int t = 0; t < NUM_CONSUMER; t++)
+  {
+    pthread_create(&cons[t], NULL, consumer, fifo);
+  }
 
   pthread_join(pro, NULL);
-  pthread_join(con1, NULL);
-  pthread_join(con2, NULL);
+  for (int t = 0; t < NUM_CONSUMER; t++)
+  {
+    pthread_join(cons[t], NULL);
+  }
 
   queueDelete(fifo);
 
@@ -65,8 +78,11 @@ void *producer(void *q)
     queueAdd(fifo, i);
     pthread_mutex_unlock(fifo->mut);
     pthread_cond_signal(fifo->notEmpty);
-    usleep(100000);
+    
+    // printf("producer: added %d.\n", i);
   }
+  prod_finished = 1;
+  pthread_cond_broadcast(fifo->notEmpty);
   return (NULL);
 }
 
@@ -77,19 +93,23 @@ void *consumer(void *q)
 
   fifo = (queue *)q;
 
-  while(1)
+  while (1)
   {
     pthread_mutex_lock(fifo->mut);
-    while (fifo->empty)
+    while (fifo->empty && !prod_finished)
     {
       printf("consumer: queue EMPTY.\n");
       pthread_cond_wait(fifo->notEmpty, fifo->mut);
+    }
+    if (fifo->empty && prod_finished)
+    {
+      pthread_mutex_unlock(fifo->mut);
+      break;
     }
     queueDel(fifo, &d);
     pthread_mutex_unlock(fifo->mut);
     pthread_cond_signal(fifo->notFull);
     printf("consumer: recieved %d.\n", d);
-    usleep(200000);
   }
   return (NULL);
 }
