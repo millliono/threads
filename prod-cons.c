@@ -6,10 +6,11 @@
 #define QUEUESIZE 10
 #define LOOP 20
 
-void *producer (void *args);
-void *consumer (void *args);
+void *producer(void *args);
+void *consumer(void *args);
 
-typedef struct {
+typedef struct
+{
   int buf[QUEUESIZE];
   long head, tail;
   int full, empty;
@@ -17,106 +18,116 @@ typedef struct {
   pthread_cond_t *notFull, *notEmpty;
 } queue;
 
-queue *queueInit (void);
-void queueDelete (queue *q);
-void queueAdd (queue *q, int in);
-void queueDel (queue *q, int *out);
+queue *queueInit(void);
+void queueDelete(queue *q);
+void queueAdd(queue *q, int in);
+void queueDel(queue *q, int *out);
 
-int main ()
+int main()
 {
   queue *fifo;
-  pthread_t pro, con;
+  pthread_t pro, con1, con2;
 
-  fifo = queueInit ();
-  if (fifo ==  NULL) {
-    fprintf (stderr, "main: Queue Init failed.\n");
-    exit (1);
+  fifo = queueInit();
+  if (fifo == NULL)
+  {
+    fprintf(stderr, "main: Queue Init failed.\n");
+    exit(1);
   }
-  pthread_create (&pro, NULL, producer, fifo);
-  pthread_create (&con, NULL, consumer, fifo);
-  pthread_join (pro, NULL);
-  pthread_join (con, NULL);
-  queueDelete (fifo);
+  pthread_create(&pro, NULL, producer, fifo);
+  pthread_create(&con1, NULL, consumer, fifo);
+  pthread_create(&con2, NULL, consumer, fifo);
+
+  pthread_join(pro, NULL);
+  pthread_join(con1, NULL);
+  pthread_join(con2, NULL);
+
+  queueDelete(fifo);
 
   return 0;
 }
 
-void *producer (void *q)
+void *producer(void *q)
 {
   queue *fifo;
   int i;
 
   fifo = (queue *)q;
 
-  for (i = 0; i < LOOP; i++) {
-    pthread_mutex_lock (fifo->mut);
-    while (fifo->full) {
-      printf ("producer: queue FULL.\n");
-      pthread_cond_wait (fifo->notFull, fifo->mut);
+  for (i = 0; i < LOOP; i++)
+  {
+    pthread_mutex_lock(fifo->mut);
+    while (fifo->full)
+    {
+      printf("producer: queue FULL.\n");
+      pthread_cond_wait(fifo->notFull, fifo->mut);
     }
-    queueAdd (fifo, i);
-    pthread_mutex_unlock (fifo->mut);
-    pthread_cond_signal (fifo->notEmpty);
-    usleep (100000);
+    queueAdd(fifo, i);
+    pthread_mutex_unlock(fifo->mut);
+    pthread_cond_signal(fifo->notEmpty);
+    usleep(100000);
   }
   return (NULL);
 }
 
-void *consumer (void *q)
+void *consumer(void *q)
 {
   queue *fifo;
   int i, d;
 
   fifo = (queue *)q;
 
-  for (i = 0; i < LOOP; i++) {
-    pthread_mutex_lock (fifo->mut);
-    while (fifo->empty) {
-      printf ("consumer: queue EMPTY.\n");
-      pthread_cond_wait (fifo->notEmpty, fifo->mut);
+  while(1)
+  {
+    pthread_mutex_lock(fifo->mut);
+    while (fifo->empty)
+    {
+      printf("consumer: queue EMPTY.\n");
+      pthread_cond_wait(fifo->notEmpty, fifo->mut);
     }
-    queueDel (fifo, &d);
-    pthread_mutex_unlock (fifo->mut);
-    pthread_cond_signal (fifo->notFull);
-    printf ("consumer: recieved %d.\n", d);
+    queueDel(fifo, &d);
+    pthread_mutex_unlock(fifo->mut);
+    pthread_cond_signal(fifo->notFull);
+    printf("consumer: recieved %d.\n", d);
     usleep(200000);
   }
   return (NULL);
 }
 
-queue *queueInit (void)
+queue *queueInit(void)
 {
   queue *q;
 
-  q = (queue *)malloc (sizeof (queue));
-  if (q == NULL) return (NULL);
+  q = (queue *)malloc(sizeof(queue));
+  if (q == NULL)
+    return (NULL);
 
   q->empty = 1;
   q->full = 0;
   q->head = 0;
   q->tail = 0;
-  q->mut = (pthread_mutex_t *) malloc (sizeof (pthread_mutex_t));
-  pthread_mutex_init (q->mut, NULL);
-  q->notFull = (pthread_cond_t *) malloc (sizeof (pthread_cond_t));
-  pthread_cond_init (q->notFull, NULL);
-  q->notEmpty = (pthread_cond_t *) malloc (sizeof (pthread_cond_t));
-  pthread_cond_init (q->notEmpty, NULL);
-	
+  q->mut = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+  pthread_mutex_init(q->mut, NULL);
+  q->notFull = (pthread_cond_t *)malloc(sizeof(pthread_cond_t));
+  pthread_cond_init(q->notFull, NULL);
+  q->notEmpty = (pthread_cond_t *)malloc(sizeof(pthread_cond_t));
+  pthread_cond_init(q->notEmpty, NULL);
+
   return (q);
 }
 
-void queueDelete (queue *q)
+void queueDelete(queue *q)
 {
-  pthread_mutex_destroy (q->mut);
-  free (q->mut);	
-  pthread_cond_destroy (q->notFull);
-  free (q->notFull);
-  pthread_cond_destroy (q->notEmpty);
-  free (q->notEmpty);
-  free (q);
+  pthread_mutex_destroy(q->mut);
+  free(q->mut);
+  pthread_cond_destroy(q->notFull);
+  free(q->notFull);
+  pthread_cond_destroy(q->notEmpty);
+  free(q->notEmpty);
+  free(q);
 }
 
-void queueAdd (queue *q, int in)
+void queueAdd(queue *q, int in)
 {
   q->buf[q->tail] = in;
   q->tail++;
@@ -129,7 +140,7 @@ void queueAdd (queue *q, int in)
   return;
 }
 
-void queueDel (queue *q, int *out)
+void queueDel(queue *q, int *out)
 {
   *out = q->buf[q->head];
 
