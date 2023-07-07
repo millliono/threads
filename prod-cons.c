@@ -27,8 +27,7 @@ void queueAdd(queue *q, int in);
 void queueDel(queue *q, int *out);
 
 bool prod_finished = 0;
-// struct timeval time_now;
-
+struct timeval time_now;
 
 int main()
 {
@@ -78,8 +77,8 @@ void *producer(void *q)
     queueAdd(fifo, i);
     pthread_mutex_unlock(fifo->mut);
     pthread_cond_signal(fifo->notEmpty);
-    
-    // printf("producer: added %d.\n", i);
+
+    printf("producer: added %d.\n", i);
   }
   prod_finished = 1;
   pthread_cond_broadcast(fifo->notEmpty);
