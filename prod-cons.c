@@ -9,13 +9,16 @@
 #define LOOP 20
 #define NUM_CONSUMER 5
 #define PERIOD 100000
+#define StartDelay 5
 
 void *producer(void *args);
 void *consumer(void *args);
 
-typedef struct {
-    void (*function)(int); // function pointer
-    int argument;
+typedef struct
+{
+  void (*function)(int); // function pointer
+  int argument;
+  int TasksToExecute;
 } q_element;
 
 typedef struct
@@ -37,7 +40,7 @@ struct timeval tv;
 time_t t;
 struct tm *info;
 
-void dowork(int id)
+void TimerFcn(int id)
 {
   printf("fifo %d element is running.\n", id);
   for (int i = 0; i < 1000000; ++i)
@@ -45,6 +48,16 @@ void dowork(int id)
     // Do some computation
   }
   printf("fifo %d element is done.\n", id);
+}
+
+void StartFcn()
+{
+  printf("i am StartFcn.\n");
+}
+
+void StopFcn()
+{
+  printf("i am StopFcn.\n");
 }
 
 int main()
@@ -72,6 +85,7 @@ int main()
     pthread_join(cons[t], NULL);
   }
 
+  StopFcn();
   queueDelete(fifo);
 
   return 0;
@@ -83,13 +97,17 @@ void *producer(void *q)
   int i;
 
   q_element in;
-  in.function = dowork; 
+  in.function = TimerFcn;
+  in.TasksToExecute = 1;
 
   fifo = (queue *)q;
 
   struct timeval end;
   struct timeval start;
   unsigned int delay;
+
+  StartFcn();
+  usleep(StartDelay * 1000000);
 
   for (i = 0; i < LOOP; i++)
   {
@@ -146,12 +164,15 @@ void *consumer(void *q)
       pthread_mutex_unlock(fifo->mut);
       break;
     }
-    queueDel(fifo, &out); // delete
+    queueDel(fifo, &out);            // delete
     pthread_mutex_unlock(fifo->mut); // unlock mutex
     pthread_cond_signal(fifo->notFull);
     printf("consumer: received.\n");
 
-    out.function(out.argument); // execute work
+    for (int i = 0; i < out.TasksToExecute; i++)
+    {
+      out.function(out.argument); // execute work
+    }
   }
   return (NULL);
 }
