@@ -8,7 +8,7 @@
 #define QUEUESIZE 10
 #define LOOP 20
 #define NUM_CONSUMER 5
-#define PERIOD 500000
+#define PERIOD 10000
 
 void *producer(void *args);
 void *consumer(void *args);
@@ -84,7 +84,7 @@ void *producer(void *q)
       pthread_cond_wait(fifo->notFull, fifo->mut);
     }
     gettimeofday(&end, NULL);
-    queueAdd(fifo, i); // add 
+    queueAdd(fifo, i); // add
 
     gettimeofday(&tv, NULL);
     t = tv.tv_sec;
@@ -96,7 +96,10 @@ void *producer(void *q)
 
     delay = (end.tv_sec * 1000000 + end.tv_usec) -
             (start.tv_sec * 1000000 + start.tv_usec);
-    usleep(PERIOD - delay);
+    if ((PERIOD - delay) > 0)
+    {
+      usleep(PERIOD - delay);
+    }
   }
   prod_finished = 1;
   pthread_cond_broadcast(fifo->notEmpty);
