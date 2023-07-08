@@ -8,14 +8,14 @@
 #define QUEUESIZE 10
 #define LOOP 20
 #define NUM_CONSUMER 5
-#define PERIOD 10000
+#define PERIOD 100000
 
 void *producer(void *args);
 void *consumer(void *args);
 
 typedef struct
 {
-  int buf[QUEUESIZE];
+  void (*buf[QUEUESIZE])(void);
   long head, tail;
   int full, empty;
   pthread_mutex_t *mut;
@@ -24,8 +24,8 @@ typedef struct
 
 queue *queueInit(void);
 void queueDelete(queue *q);
-void queueAdd(queue *q, int in);
-void queueDel(queue *q, int *out);
+void queueAdd(queue *q, void (*fun)());
+void queueDel(queue *q, void (**fun)());
 
 bool prod_finished = 0;
 struct timeval tv;
@@ -94,7 +94,7 @@ void *producer(void *q)
       pthread_cond_wait(fifo->notFull, fifo->mut);
     }
     gettimeofday(&end, NULL);
-    queueAdd(fifo, i); // add
+    queueAdd(fifo, dowork); // add
 
     gettimeofday(&tv, NULL);
     t = tv.tv_sec;
@@ -119,13 +119,14 @@ void *producer(void *q)
 void *consumer(void *q)
 {
   queue *fifo;
-  int i, d;
+  int i;
+  void (*d)(void);
 
   fifo = (queue *)q;
 
   while (1)
   {
-    pthread_mutex_lock(fifo->mut);
+    pthread_mutex_lock(fifo->mut); // lock mutex
     while (fifo->empty && !prod_finished)
     {
       printf("consumer: queue EMPTY.\n");
@@ -136,10 +137,11 @@ void *consumer(void *q)
       pthread_mutex_unlock(fifo->mut);
       break;
     }
-    queueDel(fifo, &d);
-    pthread_mutex_unlock(fifo->mut);
+    queueDel(fifo, &d); // delete
+    pthread_mutex_unlock(fifo->mut); // unlock mutex
     pthread_cond_signal(fifo->notFull);
-    printf("consumer: recieved %d.\n", d);
+    printf("consumer: received.\n");
+    d();
   }
   return (NULL);
 }
@@ -177,9 +179,9 @@ void queueDelete(queue *q)
   free(q);
 }
 
-void queueAdd(queue *q, int in)
+void queueAdd(queue *q, void (*fun)(void))
 {
-  q->buf[q->tail] = in;
+  q->buf[q->tail] = fun;
   q->tail++;
   if (q->tail == QUEUESIZE)
     q->tail = 0;
@@ -190,9 +192,9 @@ void queueAdd(queue *q, int in)
   return;
 }
 
-void queueDel(queue *q, int *out)
+void queueDel(queue *q, void (**fun)(void))
 {
-  *out = q->buf[q->head];
+  *fun = q->buf[q->head];
 
   q->head++;
   if (q->head == QUEUESIZE)
