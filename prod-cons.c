@@ -54,10 +54,13 @@ void StartFcn()
 {
   printf("i am StartFcn.\n");
 }
-
 void StopFcn()
 {
   printf("i am StopFcn.\n");
+}
+void ErrorFcn()
+{
+  printf("i am ErrorFcn.\n");
 }
 
 int main()
@@ -116,6 +119,7 @@ void *producer(void *q)
 
     while (fifo->full)
     {
+      ErrorFcn();
       printf("producer: queue FULL.\n");
       pthread_cond_wait(fifo->notFull, fifo->mut);
     }
