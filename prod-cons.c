@@ -32,6 +32,16 @@ struct timeval tv;
 time_t t;
 struct tm *info;
 
+void dowork()
+{
+  printf("Thread is running.\n");
+  for (int i = 0; i < 1000000; ++i)
+  {
+    // Do some computation
+  }
+  printf("Thread is done.\n");
+}
+
 int main()
 {
   queue *fifo;
