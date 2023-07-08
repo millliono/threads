@@ -13,9 +13,14 @@
 void *producer(void *args);
 void *consumer(void *args);
 
+typedef struct {
+    void (*function)(int); // function pointer
+    int argument;
+} q_element;
+
 typedef struct
 {
-  void (*buf[QUEUESIZE])(void);
+  q_element buf[QUEUESIZE];
   long head, tail;
   int full, empty;
   pthread_mutex_t *mut;
@@ -24,22 +29,22 @@ typedef struct
 
 queue *queueInit(void);
 void queueDelete(queue *q);
-void queueAdd(queue *q, void (*fun)());
-void queueDel(queue *q, void (**fun)());
+void queueAdd(queue *q, q_element in);
+void queueDel(queue *q, q_element *out);
 
 bool prod_finished = 0;
 struct timeval tv;
 time_t t;
 struct tm *info;
 
-void dowork()
+void dowork(int id)
 {
-  printf("Thread is running.\n");
+  printf("fifo %d element is running.\n", id);
   for (int i = 0; i < 1000000; ++i)
   {
     // Do some computation
   }
-  printf("Thread is done.\n");
+  printf("fifo %d element is done.\n", id);
 }
 
 int main()
@@ -77,6 +82,9 @@ void *producer(void *q)
   queue *fifo;
   int i;
 
+  q_element in;
+  in.function = dowork; 
+
   fifo = (queue *)q;
 
   struct timeval end;
@@ -93,8 +101,9 @@ void *producer(void *q)
       printf("producer: queue FULL.\n");
       pthread_cond_wait(fifo->notFull, fifo->mut);
     }
+    in.argument = i;
     gettimeofday(&end, NULL);
-    queueAdd(fifo, dowork); // add
+    queueAdd(fifo, in); // add
 
     gettimeofday(&tv, NULL);
     t = tv.tv_sec;
@@ -120,7 +129,7 @@ void *consumer(void *q)
 {
   queue *fifo;
   int i;
-  void (*d)(void);
+  q_element out;
 
   fifo = (queue *)q;
 
@@ -137,11 +146,12 @@ void *consumer(void *q)
       pthread_mutex_unlock(fifo->mut);
       break;
     }
-    queueDel(fifo, &d); // delete
+    queueDel(fifo, &out); // delete
     pthread_mutex_unlock(fifo->mut); // unlock mutex
     pthread_cond_signal(fifo->notFull);
     printf("consumer: received.\n");
-    d();
+
+    out.function(out.argument); // execute work
   }
   return (NULL);
 }
@@ -179,9 +189,9 @@ void queueDelete(queue *q)
   free(q);
 }
 
-void queueAdd(queue *q, void (*fun)(void))
+void queueAdd(queue *q, q_element in)
 {
-  q->buf[q->tail] = fun;
+  q->buf[q->tail] = in;
   q->tail++;
   if (q->tail == QUEUESIZE)
     q->tail = 0;
@@ -192,9 +202,9 @@ void queueAdd(queue *q, void (*fun)(void))
   return;
 }
 
-void queueDel(queue *q, void (**fun)(void))
+void queueDel(queue *q, q_element *out)
 {
-  *fun = q->buf[q->head];
+  *out = q->buf[q->head];
 
   q->head++;
   if (q->head == QUEUESIZE)
