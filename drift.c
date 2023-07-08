@@ -37,7 +37,7 @@ int main()
     for (j = 0; j < 10000; j++)
       sum += j;
 
-    printf("Iter %d\tresult %d\n", i, sum);
+    printf("Iter %d:\t\n", i);
 
     delay = (end.tv_sec * 1000000 + end.tv_usec) -
                      (start.tv_sec * 1000000 + start.tv_usec);
@@ -45,7 +45,7 @@ int main()
     us = delay%1000000;
     printf("    difference: %d seconds, %d us.\n",sec, us);
 
-    sleep(1);
+    usleep(1000000);
   }
 
   return 0;
