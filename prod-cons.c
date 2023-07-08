@@ -9,7 +9,7 @@
 #define LOOP 20
 #define NUM_CONSUMER 5
 #define PERIOD 100000
-#define StartDelay 5
+#define StartDelay 2
 
 void *producer(void *args);
 void *consumer(void *args);
@@ -105,8 +105,7 @@ void *producer(void *q)
 
   fifo = (queue *)q;
 
-  struct timeval end;
-  struct timeval start;
+  struct timeval start, end;
   unsigned int delay;
 
   StartFcn();
